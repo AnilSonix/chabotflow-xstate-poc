@@ -1,4 +1,4 @@
-import { Snapshot, assign, createActor, createMachine } from "xstate";
+import { Snapshot, assign, createActor, createMachine, emit, setup } from "xstate";
 
 
 // tHink of this as server route handler
@@ -7,7 +7,18 @@ export function handleRequest(textInput: string) {
     // 1. create a bot flow state machine
     // it defines the flow of conversation
     // we decided to not provide a visual deisgner, so we create it manually
-    const botflowMachine = createMachine({
+    const botflowMachine = setup({
+        actions : {
+            intentEnter: emit(({ context,event },params) => {
+                console.info({context,event,params})
+
+                return ({
+                    type: 'intentEnter',
+                    data: params
+                  })
+            }),
+        }
+    }).createMachine({
         id: "botflow",
         initial: "start",
         context: { name: "" },
@@ -15,7 +26,13 @@ export function handleRequest(textInput: string) {
             start: {
                 on: {
                     next: "greetUser"
-                }
+                },
+                entry : {
+                    type: 'intentEnter',
+                    params: {
+                      intent: 'CustomerSupport',
+                    },
+                  },
             },
             greetUser: {
                 entry: (e) => {
@@ -84,6 +101,10 @@ export function handleRequest(textInput: string) {
 
     // 3. we log for debug
     botflowActor.subscribe(console.warn)
+
+    botflowActor.on('intentEnter', (e) => {
+        console.log(`Saving intent enter:`,e);
+      });
 
     //4. update ui to show current state name
     botflowActor.subscribe(e => renderStateName(e.value as string))
